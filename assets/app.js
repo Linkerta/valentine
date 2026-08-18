@@ -206,7 +206,7 @@ function caption(d) {
 /* подсказка при сборке: сразу видно, какой файл не подложен */
 document.addEventListener('error', e => {
   const t = e.target;
-  if (t.tagName !== 'IMG') return;
+  if (t.tagName !== 'IMG' || t.id === 'lightbox-img' || !t.getAttribute('src')) return;
   const ph = el('div', 'missing');
   ph.textContent = 'нет файла: ' + t.getAttribute('src');
   t.replaceWith(ph);
@@ -245,7 +245,7 @@ function openLightbox(src) {
 }
 function closeLightbox() {
   lb.hidden = true;
-  $('lightbox-img').src = '';
+  $('lightbox-img').removeAttribute('src');
   document.body.style.overflow = '';
   tg?.BackButton?.hide();
 }
