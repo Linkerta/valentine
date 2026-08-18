@@ -122,7 +122,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--wire);outline-offse
 }
 
 /* ── АЛЬБОМ ─────────────────────────────────────────── */
-#album{
+#scroll-mode{
   max-width:460px;margin:0 auto;
   padding:56px 18px calc(60px + env(safe-area-inset-bottom));
 }
@@ -136,7 +136,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--wire);outline-offse
 }
 .album-sub{font-family:var(--hand);font-size:22px;color:#A08C6E}
 .album-foot{text-align:center;margin-top:60px}
-.album-foot .sign{text-align:center;font-size:30px;color:#A08C6E;margin-bottom:14px}
+.album-foot .foot-sign{text-align:center;font-size:30px;color:#A08C6E;margin-bottom:14px}
 
 /* появление карточек */
 .card{
@@ -288,4 +288,105 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--wire);outline-offse
   display:grid;place-items:center;min-height:120px;padding:18px;
   background:rgba(176,58,46,.08);border:1px dashed rgba(176,58,46,.55);
   font-size:10px;letter-spacing:.1em;color:var(--stamp);text-align:center;word-break:break-all;
+}
+
+/* ═══════════ РЕЖИМ «КНИГА» ═══════════════════════════ */
+
+#shell[hidden]{display:none}
+#book-mode[hidden]{display:none}
+
+#mode-toggle{
+  position:fixed;z-index:15;
+  top:calc(10px + env(safe-area-inset-top));right:12px;
+  padding:8px 12px;border-radius:2px;
+  background:rgba(239,227,204,.1);border:1px solid rgba(160,140,110,.4);
+  color:#A08C6E;font-size:9px;letter-spacing:.2em;text-transform:uppercase;
+  backdrop-filter:blur(6px);
+}
+
+#book-mode{position:fixed;inset:0;overflow:hidden}
+
+#book{
+  position:absolute;inset:0;
+  perspective:1700px;
+  perspective-origin:50% 42%;
+}
+
+.page{
+  position:absolute;inset:0;
+  transform-origin:left center;
+  transform-style:preserve-3d;
+  will-change:transform;
+}
+.page.anim{transition:transform .55s cubic-bezier(.3,.85,.35,1)}
+.page.off{display:none}
+
+.face{
+  position:absolute;inset:0;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  padding:calc(52px + env(safe-area-inset-top)) 20px calc(96px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(120% 70% at 50% 0%, #241D15 0%, #14100C 70%);
+}
+/* изнанка листа */
+.face-back{
+  transform:rotateY(180deg);
+  background:
+    radial-gradient(90% 60% at 30% 20%, #201A13 0%, #100D0A 75%);
+}
+.face-back::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg, rgba(255,255,255,.014) 0 1px, transparent 1px 4px);
+}
+
+/* корешок слева */
+.face-front::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:22px;
+  background:linear-gradient(90deg, rgba(0,0,0,.55), transparent);
+  pointer-events:none;z-index:2;
+}
+/* тень, наползающая при повороте */
+.shade{
+  position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:linear-gradient(90deg, rgba(0,0,0,.6), rgba(0,0,0,0) 55%);
+  opacity:0;
+}
+
+/* карточка внутри страницы */
+.page .card{
+  margin:0 auto;max-width:420px;
+  opacity:1;transform:none;
+}
+.page .chapter{padding-top:14vh}
+
+#booknav{
+  position:fixed;z-index:12;left:0;right:0;
+  bottom:calc(14px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:center;gap:26px;
+  pointer-events:none;
+}
+#booknav button{
+  pointer-events:auto;
+  width:46px;height:46px;border-radius:50%;
+  background:rgba(239,227,204,.08);border:1px solid rgba(160,140,110,.35);
+  color:#C4B291;font-size:26px;line-height:1;
+  backdrop-filter:blur(6px);
+}
+#booknav button:disabled{opacity:.25}
+#pageno{
+  font-size:10px;letter-spacing:.24em;color:#8A7A63;min-width:66px;text-align:center;
+}
+
+/* подсказка «есть продолжение ниже» */
+.more{
+  position:sticky;bottom:-6px;display:block;margin:22px auto 0;width:fit-content;
+  font-size:16px;color:rgba(160,140,110,.65);
+  animation:nudge 1.9s ease-in-out infinite;
+}
+@keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+
+@media (prefers-reduced-motion:reduce){
+  .page.anim{transition:none}
+  .more{animation:none}
 }

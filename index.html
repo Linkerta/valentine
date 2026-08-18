@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=2">
+<link rel="stylesheet" href="assets/style.css?v=3">
 </head>
 <body>
 
@@ -37,20 +37,35 @@
 </section>
 
 <!-- ── ЭКРАН 3: альбом ───────────────────────────────── -->
-<main id="album" hidden>
-  <header class="album-head">
-    <p class="eyebrow">Приложение к телеграмме № 14/02</p>
-    <h2 id="album-title">Наш архив</h2>
-    <p class="album-sub" id="album-sub"></p>
-  </header>
+<div id="shell" hidden>
 
-  <div id="feed"></div>
+  <button id="mode-toggle">Страницы</button>
 
-  <footer class="album-foot">
-    <div class="sign on" id="foot-sign"></div>
-    <p class="eyebrow" id="foot-note"></p>
-  </footer>
-</main>
+  <!-- режим «лента» -->
+  <main id="scroll-mode">
+    <header class="album-head">
+      <p class="eyebrow">Приложение к телеграмме № 14/02</p>
+      <h2 class="album-title"></h2>
+      <p class="album-sub"></p>
+    </header>
+    <div id="feed"></div>
+    <footer class="album-foot">
+      <div class="sign on foot-sign"></div>
+      <p class="eyebrow foot-note"></p>
+    </footer>
+  </main>
+
+  <!-- режим «книга» -->
+  <div id="book-mode" hidden>
+    <div id="book"></div>
+    <div id="booknav">
+      <button id="prev" aria-label="Назад">&lsaquo;</button>
+      <span id="pageno"></span>
+      <button id="next" aria-label="Вперёд">&rsaquo;</button>
+    </div>
+  </div>
+
+</div>
 
 <!-- ── просмотр фото ─────────────────────────────────── -->
 <div id="lightbox" hidden>
@@ -58,7 +73,7 @@
   <button id="lightbox-close" aria-label="Закрыть">&times;</button>
 </div>
 
-<script src="assets/story.js?v=2"></script>
-<script src="assets/app.js?v=2"></script>
+<script src="assets/story.js?v=3"></script>
+<script src="assets/app.js?v=3"></script>
 </body>
 </html>

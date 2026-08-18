@@ -5,7 +5,7 @@ if (tg) {
   tg.ready(); tg.expand();
   tg.setHeaderColor?.('#14100C');
   tg.setBackgroundColor?.('#14100C');
-  tg.disableVerticalSwipes?.();      // чтобы скролл не закрывал приложение
+  tg.disableVerticalSwipes?.();
 }
 
 const $  = id => document.getElementById(id);
@@ -13,6 +13,11 @@ const el = (tag, cls) => { const n = document.createElement(tag); if (cls) n.cla
 const sleep  = ms => new Promise(r => setTimeout(r, ms));
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const buzz   = (k = 'light') => tg?.HapticFeedback?.impactOccurred?.(k);
+
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
 
 /* ── ТЕЛЕГРАММА ─────────────────────────────────────── */
 $('m-to').textContent   = CFG.to;
@@ -61,21 +66,20 @@ $('seal').addEventListener('click', () => {
 $('open-album').addEventListener('click', () => {
   buzz('medium');
   $('intro').classList.add('gone');
-  $('album').hidden = false;
-  window.scrollTo(0, 0);
-  observeCards();
+  $('shell').hidden = false;
+  setMode(store.get('mode', 'scroll'));
 });
 
-/* ── ШАПКА АЛЬБОМА ──────────────────────────────────── */
-$('album-title').textContent = CFG.albumTitle;
-$('album-sub').textContent   = CFG.albumSub;
-$('foot-sign').textContent   = CFG.sign;
-$('foot-note').textContent   = CFG.footNote;
+/* ── ШАПКА ──────────────────────────────────────────── */
+document.querySelector('.album-title').textContent = CFG.albumTitle;
+document.querySelector('.album-sub').textContent   = CFG.albumSub;
+document.querySelector('.foot-sign').textContent   = CFG.sign;
+document.querySelector('.foot-note').textContent   = CFG.footNote;
 
 /* ── ЕДИНЫЙ ПРОИГРЫВАТЕЛЬ ───────────────────────────── */
 const audio = new Audio();
 audio.preload = 'none';
-let current = null;                 // { record, fill }
+let current = null;
 
 function stopAll() {
   audio.pause();
@@ -89,26 +93,16 @@ audio.addEventListener('ended', stopAll);
 
 function toggleTrack(src, record, fill) {
   const same = current && current.record === record;
-  if (same && !audio.paused) {                 // пауза: диск замирает
-    audio.pause();
-    record.classList.remove('playing');
-    buzz('soft');
-    return;
-  }
+  if (same && !audio.paused) { audio.pause(); record.classList.remove('playing'); buzz('soft'); return; }
   if (!same) { stopAll(); audio.src = src; }
   audio.play().then(() => {
     record.classList.add('playing');
     current = { record, fill };
-    buzz('medium');                            // игла опускается
-  }).catch(() => {
-    fill.parentElement.insertAdjacentHTML('afterend',
-      '<p class="artist">Трек не загрузился</p>');
-  });
+    buzz('medium');
+  }).catch(() => {});
 }
 
 /* ── РЕНДЕР КАРТОЧЕК ────────────────────────────────── */
-const feed = $('feed');
-
 const render = {
 
   chapter(d) {
@@ -171,7 +165,6 @@ const render = {
 
   vinyl(d) {
     const s = el('div', 'sheet vinyl-card');
-
     const tt = el('div', 'turntable');
     const rec = el('div', 'record');
     const lab = el('div', 'label');
@@ -191,7 +184,6 @@ const render = {
 
     const fill = meta.querySelector('.bar-fill');
     tt.addEventListener('click', () => toggleTrack(d.src, rec, fill));
-
     s.append(tt, meta);
     return s;
   },
@@ -203,7 +195,6 @@ function caption(d) {
          `<span class="date">${d.date || ''}</span></div>`;
 }
 
-/* подсказка при сборке: сразу видно, какой файл не подложен */
 document.addEventListener('error', e => {
   const t = e.target;
   if (t.tagName !== 'IMG' || t.id === 'lightbox-img' || !t.getAttribute('src')) return;
@@ -212,17 +203,24 @@ document.addEventListener('error', e => {
   t.replaceWith(ph);
 }, true);
 
-STORY.forEach(d => {
+/* карточки строятся один раз и переезжают между режимами */
+const CARDS = STORY.map(d => {
   const build = render[d.type];
-  if (!build) { console.warn('Неизвестный тип карточки:', d.type); return; }
+  if (!build) { console.warn('Неизвестный тип карточки:', d.type); return null; }
   const card = el('div', 'card');
   card.appendChild(build(d));
-  feed.appendChild(card);
-});
+  return card;
+}).filter(Boolean);
 
-/* ── ПОЯВЛЕНИЕ ПРИ СКРОЛЛЕ ──────────────────────────── */
+/* ── РЕЖИМ «ЛЕНТА» ──────────────────────────────────── */
+function mountScroll() {
+  const feed = $('feed');
+  CARDS.forEach(c => { c.classList.remove('seen'); feed.appendChild(c); });
+  observeCards();
+}
+
 function observeCards() {
-  const cards = document.querySelectorAll('.card:not(.seen)');
+  const cards = document.querySelectorAll('#feed .card:not(.seen)');
   if (reduce || !('IntersectionObserver' in window)) {
     cards.forEach(c => c.classList.add('seen'));
     return;
@@ -235,6 +233,139 @@ function observeCards() {
   cards.forEach(c => io.observe(c));
 }
 
+/* ── РЕЖИМ «КНИГА» ──────────────────────────────────── */
+const book = $('book');
+let pages = [];
+let idx = 0;
+
+function mountBook() {
+  book.innerHTML = '';
+  pages = CARDS.map((card, i) => {
+    const page = el('div', 'page');
+    const front = el('div', 'face face-front');
+    const back  = el('div', 'face face-back');
+    const shade = el('div', 'shade');
+    card.classList.add('seen');
+    front.appendChild(card);
+    page.append(back, front, shade);
+    page.dataset.i = i;
+    book.appendChild(page);
+    return page;
+  });
+  idx = Math.min(idx, pages.length - 1);
+  layout(true);
+}
+
+function layout(instant) {
+  pages.forEach((p, i) => {
+    const flipped = i < idx;
+    p.classList.toggle('anim', !instant && !reduce);
+    p.style.zIndex = flipped ? i : 1000 - i;
+    p.style.transform = `rotateY(${flipped ? -180 : 0}deg)`;
+    p.querySelector('.shade').style.opacity = flipped ? 0 : 0;
+    // держим в DOM только соседей
+    p.classList.toggle('off', Math.abs(i - idx) > 1);
+  });
+  const face = pages[idx]?.querySelector('.face-front');
+  if (face) { face.scrollTop = 0; addMoreHint(face); }
+  $('pageno').textContent = (idx + 1) + ' / ' + pages.length;
+  $('prev').disabled = idx === 0;
+  $('next').disabled = idx === pages.length - 1;
+}
+
+function addMoreHint(face) {
+  face.querySelector('.more')?.remove();
+  requestAnimationFrame(() => {
+    if (face.scrollHeight - face.clientHeight < 40) return;
+    const m = el('div', 'more');
+    m.textContent = '↓';
+    face.appendChild(m);
+    face.addEventListener('scroll', () => m.remove(), { once: true });
+  });
+}
+
+function goTo(n) {
+  n = Math.max(0, Math.min(pages.length - 1, n));
+  if (n === idx) return;
+  idx = n;
+  buzz('light');
+  layout(false);
+}
+
+$('next').addEventListener('click', () => goTo(idx + 1));
+$('prev').addEventListener('click', () => goTo(idx - 1));
+
+/* ── ЖЕСТ: горизонталь листает, вертикаль скроллит ──── */
+let g = null;
+
+book.addEventListener('touchstart', e => {
+  if (!$('lightbox').hidden || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  g = { x0: t.clientX, y0: t.clientY, axis: null, page: null, dir: 0, t0: Date.now() };
+}, { passive: true });
+
+book.addEventListener('touchmove', e => {
+  if (!g || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const dx = t.clientX - g.x0, dy = t.clientY - g.y0;
+
+  if (!g.axis) {
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    g.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+    if (g.axis === 'x') {
+      g.dir = dx < 0 ? 1 : -1;
+      const target = g.dir === 1 ? idx : idx - 1;
+      if (target < 0 || target > pages.length - 1) { g = null; return; }
+      g.page = pages[target];
+      g.page.classList.remove('anim');
+    }
+  }
+  if (g.axis !== 'x') return;          // вертикаль — отдаём нативному скроллу
+
+  e.preventDefault();
+  const w = book.clientWidth || 1;
+  let deg = g.dir === 1
+    ? Math.max(-180, Math.min(0, dx / w * 180))
+    : Math.max(-180, Math.min(0, -180 + dx / w * 180));
+  g.page.style.transform = `rotateY(${deg}deg)`;
+  g.page.querySelector('.shade').style.opacity = Math.min(.75, Math.abs(deg) / 180 * .9);
+}, { passive: false });
+
+book.addEventListener('touchend', () => {
+  if (!g) return;
+  if (g.axis === 'x' && g.page) {
+    const m = /rotateY\((-?[\d.]+)deg\)/.exec(g.page.style.transform);
+    const deg = m ? parseFloat(m[1]) : 0;
+    const fast = Date.now() - g.t0 < 260;
+    g.page.classList.add('anim');
+    g.page.querySelector('.shade').style.opacity = 0;
+    const past = Math.abs(deg) > 90;
+    if (g.dir === 1) (past || (fast && deg < -20)) ? goTo(idx + 1) : layout(false);
+    else             (!past || (fast && deg > -160)) ? goTo(idx - 1) : layout(false);
+  }
+  g = null;
+});
+
+/* ── ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМОВ ──────────────────────────── */
+let mode = null;
+
+function setMode(m) {
+  if (m === mode) return;
+  mode = m;
+  store.set('mode', m);
+  const bookOn = m === 'book';
+  $('book-mode').hidden = !bookOn;
+  $('scroll-mode').hidden = bookOn;
+  document.body.style.overflow = bookOn ? 'hidden' : '';
+  $('mode-toggle').textContent = bookOn ? 'Лента' : 'Страницы';
+  if (bookOn) mountBook(); else { mountScroll(); window.scrollTo(0, 0); }
+}
+
+$('mode-toggle').addEventListener('click', () => {
+  buzz('medium');
+  setMode(mode === 'book' ? 'scroll' : 'book');
+});
+
 /* ── ПРОСМОТР ФОТО ──────────────────────────────────── */
 const lb = $('lightbox');
 function openLightbox(src) {
@@ -246,8 +377,15 @@ function openLightbox(src) {
 function closeLightbox() {
   lb.hidden = true;
   $('lightbox-img').removeAttribute('src');
-  document.body.style.overflow = '';
+  document.body.style.overflow = mode === 'book' ? 'hidden' : '';
   tg?.BackButton?.hide();
 }
 lb.addEventListener('click', closeLightbox);
 tg?.BackButton?.onClick?.(closeLightbox);
+
+/* клавиатура — для проверки на компьютере */
+document.addEventListener('keydown', e => {
+  if (mode !== 'book') return;
+  if (e.key === 'ArrowRight') goTo(idx + 1);
+  if (e.key === 'ArrowLeft')  goTo(idx - 1);
+});
